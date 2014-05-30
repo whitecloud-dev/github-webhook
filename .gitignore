@@ -8,3 +8,4 @@ sync-configs/*
 .settings/org.eclipse.php.core.prefs
 
 ._.gitignore
+.idea

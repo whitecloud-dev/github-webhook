@@ -9,10 +9,10 @@ ignore_user_abort();
 function copyContents($source, $dest) {
 	$sourceHandle = opendir($source);
 	if (!is_dir($dest)) mkdir($dest, 0777, true);
-	
+
 	while($res = readdir($sourceHandle)) {
 		if ($res == '.' || $res == '..') continue;
-		
+
 		if(is_dir($source . '/' . $res)) {
 			copyContents($source . '/' . $res, $dest . '/' . $res);
 		}
@@ -23,7 +23,7 @@ function copyContents($source, $dest) {
 
 /**
  * STEP 0: Preconfiguration
- * - check IP which request this script, 
+ * - check IP which request this script,
  * - create temporary dir for repo caching
  */
 $sync_task = array();
@@ -44,7 +44,7 @@ if (!empty($_SERVER['REMOTE_ADDR'])) {
 else $error = '$_SERVER[\'REMOTE_ADDR\'] is not set. Operations from console are not allowed.';
 
 /**
- * STEP 1: Get params from POST request and check if this repos 
+ * STEP 1: Get params from POST request and check if this repos
  * is allowed for this instance of github-webhook
  */
 if (empty($error)) $log .= PHP_EOL.'------------------------------ Repo check'.PHP_EOL;
@@ -57,13 +57,19 @@ if (empty($error) && !empty($_REQUEST['payload'])) {
 	if (!empty($payload)) {
 		# check if we have a config file for current repository
 		# from submited data
-		# need to be like $repo_conf [ repo_url ]; 
+		# need to be like $repo_conf [ repo_url ];
 		if (isset($repo_conf[@$payload['repository']['url']])) {
-			if (strpos($payload['ref'], $repo_conf[$payload['repository']['url']]['branch']) !== false) {
-				$log .= 'SYNC CONFIG FOUND'.PHP_EOL.PHP_EOL;
-				$sync_conf = &$repo_conf[$payload['repository']['url']];
+            foreach($repo_conf[$payload['repository']['url']]['branches'] as $branch => $branch_data)
+            {
+                if (!isset($sync_conf) && strpos($payload['ref'], $branch) !== false) {
+                    $log .= 'SYNC CONFIG FOUND'.PHP_EOL.PHP_EOL;
+                    $sync_conf = &$repo_conf[$payload['repository']['url']]['branches'][$branch];
+                    $branch_found = $branch;
+                }
+            }
+			if (!isset($sync_conf)) {
+                $error = 'Could not find any branches for "'.$payload['repository']['url'].'". Ignore';
 			}
-			else $error = 'Commit not to "'.$repo_conf[$repo_conf[$payload['repository']['url']]].'" branch. Ignore';
 		}
 		else $error = 'Post-commit webhook not configured for sync "'.$payload['repository']['url'].'" repository';
 	}
@@ -73,7 +79,7 @@ else if (empty($error)) $error = 'Payload variable does not exist or empty';
 
 
 /**
- * STEP 2: Check configuration of repository sync, 
+ * STEP 2: Check configuration of repository sync,
  * commit list of task for syncing
  */
 if (empty($error)) $log .= PHP_EOL.'------------------------------ Config check'.PHP_EOL;
@@ -82,8 +88,8 @@ if (empty($error) && !empty($sync_conf)) {
 	# update cache dir for this repository
 	$cache_dir = __CACHE_DIR__.(substr(__CACHE_DIR__,-1) != '/' ? '/' : '').urlencode($payload['repository']['url']);
 	$log .= 'Cache dir: '.$cache_dir.PHP_EOL;
-	
-	$log .= 'Hosts to sync: '.$hosts.PHP_EOL.'=========='.PHP_EOL;
+
+	$log .= 'Hosts to sync: '.$sync_conf['hosts'].PHP_EOL.'=========='.PHP_EOL;
 	# build task list for each of this servers
 	$hosts = explode(',', $sync_conf['hosts']);
 	foreach ($hosts as &$host) {
@@ -102,7 +108,7 @@ if (empty($error) && !empty($sync_conf)) {
 					'$path'		=> $c_host['path'],
 					'$repo_path'	=> $sync_conf['server_path'],
 				);
-				
+
 				$tmp_task = str_replace(array_keys($replace), array_values($replace), $proto_conf[$c_host['proto']]['exec']);
 				$log .= 'Task:'.PHP_EOL.$tmp_task.PHP_EOL;
 				$sync_task[] = $tmp_task;
@@ -116,8 +122,8 @@ if (empty($error) && !empty($sync_conf)) {
 
 
 /**
- * STEP 3: 
- * checkout (cache) commited version of master branch 
+ * STEP 3:
+ * checkout (cache) commited version of master branch
  */
 if (empty($error)) $log .= PHP_EOL.'------------------------------ Checkout & sync'.PHP_EOL;
 if (empty($error) && !empty($sync_task)) {
@@ -125,8 +131,9 @@ if (empty($error) && !empty($sync_task)) {
 	# prepare for clone repo or update it
 	$updated = false;
 	$git = array (
-		'$repo_url'	=> str_replace('http://', 'git://', $payload['repository']['url']).'.git',
+		'$repo_url'	=> str_replace('https://', 'git@', str_replace('github.com/', 'github.com:', $payload['repository']['url'])).'.git',
 		'$cache_dir'	=> $cache_dir,
+        '$branch'       => $branch_found,
 	);
 
 	# check if cache dir is exists. if not - create it
@@ -158,10 +165,18 @@ if (empty($error) && !empty($sync_task)) {
 		echo '* '.implode('<br/>* ', $result);
 		$log .= 'Result: '.PHP_EOL.'* '.implode(PHP_EOL.'* ', $result).PHP_EOL.PHP_EOL;
 	}
-	
+
+    $log .= '---------- CHECKOUT'.PHP_EOL;
+    $command = str_replace(array_keys($git), array_values($git), __CMD_CHECKOUT__);
+    echo '<hr/>EXECUTE COMMAND: '.$command.'<br/>';
+    $log .= 'Executing: '.$command.PHP_EOL;
+    exec($command, $result);
+    echo '* '.implode('<br/>* ', $result);
+    $log .= 'Result: '.PHP_EOL.'* '.implode(PHP_EOL.'* ', $result).PHP_EOL.PHP_EOL;
+
 	if (!empty($sync_conf['config_folder'])) {
 		$files = @scandir(__SYNC_CONFIGS_DIR__ . '/' . $sync_conf['config_folder']);
-		
+
 		# Copy configs
 		if (count($files) > 2) {
 			$log .= 'Found config folder: "'.$sync_conf['config_folder'].'"'.PHP_EOL.PHP_EOL;
@@ -175,7 +190,7 @@ if (empty($error) && !empty($sync_task)) {
 		foreach ($sync_task as $task) {
 			$log .= '---------- UPLOAD'.PHP_EOL;
 			echo '<hr/>'.$task.'<br/>';
-			$log .= 'Executing: '.$command.PHP_EOL;
+			$log .= 'Executing: '.$task.PHP_EOL;
 			exec($task, $result);
 			echo '* '.implode('<br/>* ', $result);
 			$log .= 'Result: '.PHP_EOL.'* '.implode(PHP_EOL.'* ', $result).PHP_EOL.PHP_EOL;

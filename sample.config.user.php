@@ -48,10 +48,13 @@ $hosts_conf = array(
 #
 $repo_conf = array(
 	'http://github.com/Coppertino/github-webhook' => array(
-		'branch'	=> 'master',
-		'hosts'		=> 'dev',
-		'repo_path'	=> '',
-		'server_path'	=> 'github-webhook',
-		'config_folder'	=> 'webhook'
+		'branches'	=> array(
+            'master' => array(
+                'hosts'		=> 'dev',
+                'repo_path'	=> '',
+                'server_path'	=> 'github-webhook',
+                'config_folder'	=> 'webhook'
+            )
+        )
 	)
 );
