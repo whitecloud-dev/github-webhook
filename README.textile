@@ -54,10 +54,13 @@ What you will have in '$repo_conf' variable:
 
 bc. $repo_conf = array(
 	'http://github.com/company_name/Abc' => array(
-		'branch'	=> 'master',
-		'hosts'		=> 'production',
-		'repo_path'	=> '',
-		'server_path'	=> 'Abc',
-		'config_folder'	=> 'Abc'
+		'branches'	=> array(
+			'master' => array(
+				'hosts'		=> 'production',
+				'repo_path'	=> '',
+				'server_path'	=> 'Abc',
+				'config_folder'	=> 'Abc'
+			)
+		)
 	)
 );
