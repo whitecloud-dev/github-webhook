@@ -3,14 +3,14 @@
 # Separated with comma. Empty string - all ips allowed.
 # Look in admin panel for GitHub public IP's
 # Example: '127.0.0.1, 192.168.1.1'
-define('__ALLOWED_IPS__',   '94.45.140.46, 207.97.227.253, 50.57.128.197');
+define('__ALLOWED_IPS__', '94.45.140.46, 207.97.227.253, 50.57.128.197');
 
 # Emails to send sync results
-define('MAIL_TO',       'johndoe@example.com');
+define('MAIL_TO', 'johndoe@example.com');
 # Mail everything, including logs.
-define('MAIL_LOGS',     true);
+define('MAIL_LOGS', true);
 # Mail only if error occured
-define('MAIL_ERRORS',       true);
+define('MAIL_ERRORS', true);
 
 
 #
